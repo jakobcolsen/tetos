@@ -51,9 +51,37 @@ typedef enum {
     FDT_END = 9
 } FDTToken_t;
 
+typedef struct {
+    const unsigned char* current; // Current position in structure block
+    const unsigned char* end;     // End of structure block
+} FDTCursor_t;
+
+typedef struct {
+    const unsigned char* name;    // Property name (string)
+    const unsigned char* value;   // Property value (blob)
+    size_t length;            // Size of property value
+    uint32_t name_offset;        // Offset into strings block for name
+} FDTProp_t;
+
+// Helper functions
 static inline uint32_t read_be32(const void* pointer);
 static inline uint64_t read_be64(const void* pointer);
+static inline const unsigned char* fdt_align4(const unsigned char* base, const unsigned char* pointer);
 static int in_bounds(const FDTView_t* fdt, const void* pointer, size_t length);
-static int fdt_init(FDTView_t* fdt, const void* blob, size_t size);
+static int strlen_bounded(const char* pointer, size_t max_length, size_t* out_length);
+int fdt_init(FDTView_t* fdt, const void* blob, size_t size);
+int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char** name, FDTProp_t* prop);
+
+// Mini_lib because I'm trying to avoid libc
+extern int strcmp(const char*, const char*);
+extern size_t strlen(const char*);
+extern int memcmp(const void*, const void*, size_t);
+
+// FDT Prop helpers
+int fdt_prop_is(const FDTProp_t* prop, const char* name);
+int fdt_prop_next_string(const FDTProp_t* prop, const char** output, size_t* cursor);
+int fdt_prop_stringlist_contains(const FDTProp_t* prop, const char* string);
+int fdt_prop_read_u32(const FDTProp_t* prop, uint32_t* output, size_t index);
+int fdt_prop_read_u64(const FDTProp_t* prop, uint64_t* output, size_t index);
 
 #endif // FDT_PARSER_H

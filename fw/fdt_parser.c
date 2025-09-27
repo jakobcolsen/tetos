@@ -190,3 +190,82 @@ int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char*
 
     return 0; // Success
 }
+
+// FDT path functions
+static const char* path_push(FDTPathStack_t* stack, const char* name, size_t length) {
+    if (!stack || !name || length == 0 || stack->depth >= 32) return; // Bad input or stack full
+
+    stack->paths[stack->depth].string = name;
+    stack->paths[stack->depth].length = length;
+    stack->depth++;
+}
+
+static void path_pop(FDTPathStack_t* stack) {
+    if (!stack || stack->depth == 0) return; // Bad input or stack empty
+    stack->depth--;
+}
+
+// Joins the current path stack into a single string, separated by '/'.
+static void path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size) {
+    if (!stack || !buffer || buffer_size == 0) return; // Bad input
+
+    size_t position = 0;
+    if (buffer_size == 0) return buffer; // No space for anything
+    buffer[position++] = '/'; // Start with root
+
+    for (int i = 0; i < stack->depth; i++) {
+        if (i > 0) {
+            if (position < buffer_size)  {
+                buffer[position++] = '/'; // Separator
+            }
+
+            for (int j = 0; j < stack->paths[i].length; j++) {
+                if (position < buffer_size) {
+                    buffer[position++] = stack->paths[i].string[j];
+                }
+            }
+        }
+    }
+
+    if (position >= buffer_size) {
+        position = buffer_size - 1; // Ensure space for NULL terminator
+    }
+
+    buffer[position] = '\0'; // Null-terminate
+    return buffer;
+}
+
+// Compares the current path stack to a given path string (e.g. "/soc/uart@10000000").
+static int path_equals_str(const FDTPathStack_t* stack, const char* path) {
+    if (!stack || !path) return 0; // Bad input
+
+    int comparison = 0;
+    size_t index = 0;
+
+    if (path[0] == '/') {
+        index++; // Skip leading '/'
+    }
+
+    while (comparison < stack->depth) {
+        size_t string_index = index;
+        while (path[string_index] && path[string_index] != '/') {
+            string_index++;
+        }
+
+        size_t segment_length = string_index - index;
+        if (segment_length != stack->paths[comparison].length) return 0; // Length mismatch
+
+        if (memcmp(stack->paths[comparison].string, &path[index], segment_length) != 0) {
+            return 0; // Content mismatch
+        }
+
+        if (path[string_index] == '/') {
+            string_index++; // Skip '/'
+        }
+
+        index = string_index;
+        comparison++;
+    }
+
+    return path[index] == '\0'; // Ensure we've reached the end of the input path
+}

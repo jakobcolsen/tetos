@@ -63,6 +63,16 @@ typedef struct {
     uint32_t name_offset;        // Offset into strings block for name
 } FDTProp_t;
 
+typedef struct {
+    const char* string; 
+    size_t length;
+} FDTPath_t;
+
+typedef struct {
+    FDTPath_t paths[32];
+    size_t depth;
+} FDTPathStack_t;
+
 // Helper functions
 static inline uint32_t read_be32(const void* pointer);
 static inline uint64_t read_be64(const void* pointer);
@@ -71,6 +81,12 @@ static int in_bounds(const FDTView_t* fdt, const void* pointer, size_t length);
 static int strlen_bounded(const char* pointer, size_t max_length, size_t* out_length);
 int fdt_init(FDTView_t* fdt, const void* blob, size_t size);
 int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char** name, FDTProp_t* prop);
+
+// FDT path
+static void path_push(FDTPathStack_t* stack, const char* name, size_t length);
+static void path_pop(FDTPathStack_t* stack);
+static void path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size)
+static int path_equals_str(const FDTPathStack_t* stack, const char* path)
 
 // Mini_lib because I'm trying to avoid libc
 extern int strcmp(const char*, const char*);

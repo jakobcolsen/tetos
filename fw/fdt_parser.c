@@ -269,3 +269,25 @@ static int path_equals_str(const FDTPathStack_t* stack, const char* path) {
 
     return path[index] == '\0'; // Ensure we've reached the end of the input path
 }
+
+// Log file - O(1) add
+static void alias_add(FDTAliasTable_t* table, const char* key, const char* value) {
+    if (!table || !key || !value || table->count >= 32) return; // Bad input or table full
+
+    if (table->count < (int) sizeof(table->entries) / sizeof(table->entries[0])) {
+        table->entries[table->count++] = (FDTAlias_t) {key, value}; // Add new struct entry
+    }
+}
+
+// O(n) lookup - Improve later???
+static const char* alias_lookup(const FDTAliasTable_t* table, const char* key) {
+    if (!table || !key) return NULL; // Bad input
+
+    for (int i = 0; i < table->count; i++) {
+        if (strcmp(table->entries[i].key, key) == 0) {
+            return table->entries[i].value;
+        }
+    }
+
+    return NULL; // Not found
+}

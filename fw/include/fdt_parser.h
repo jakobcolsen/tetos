@@ -73,6 +73,18 @@ typedef struct {
     size_t depth;
 } FDTPathStack_t;
 
+typedef struct {
+    const char* key;
+    const char* value;
+} FDTAlias_t;
+
+typedef struct {
+    FDTAlias_t* entries[32];
+    size_t count;
+} FDTAliasTable_t;
+
+
+
 // Helper functions
 static inline uint32_t read_be32(const void* pointer);
 static inline uint64_t read_be64(const void* pointer);
@@ -85,8 +97,11 @@ int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char*
 // FDT path
 static void path_push(FDTPathStack_t* stack, const char* name, size_t length);
 static void path_pop(FDTPathStack_t* stack);
-static void path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size)
-static int path_equals_str(const FDTPathStack_t* stack, const char* path)
+static void path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size);
+static int path_equals_str(const FDTPathStack_t* stack, const char* path);
+
+static void alias_add(FDTAliasTable_t* table, const char* key, const char* value);
+static const char* alias_lookup(const FDTAliasTable_t* table, const char* key);
 
 // Mini_lib because I'm trying to avoid libc
 extern int strcmp(const char*, const char*);

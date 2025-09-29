@@ -51,7 +51,7 @@ void memmove(void* destination, const void* source, size_t n) {
     unsigned char* dest = (unsigned char*) destination;
     const unsigned char* src = (const unsigned char*) source;
 
-    if (dest == src || n == 0) return;
+    if (dest == src || n == 0) return destination;
 
     if (dest < src) {
         for (size_t i = 0; i < n; i++) {
@@ -62,5 +62,7 @@ void memmove(void* destination, const void* source, size_t n) {
             dest[i - 1] = src[i - 1];
         }
     }
+
+    return destination;
 }
 

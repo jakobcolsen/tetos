@@ -83,7 +83,29 @@ typedef struct {
     size_t count;
 } FDTAliasTable_t;
 
+typedef struct {
+    const char* raw;
+    const char* abs_path;
+} FDTStdOut_t;
 
+typedef struct {
+    unsigned int reg_address_cells;
+    unsigned int reg_size_cells;
+
+    // What the child should inherit.
+    unsigned int child_address_cells;
+    unsigned int child_size_cells;
+} FDTAddressSizeFrame_t;
+
+typedef struct {
+    FDTAddressSizeFrame_t frames[32];
+    size_t depth;
+} FDTAddressSizeStack_t;
+
+typedef struct {
+    uint64_t base;
+    uint64_t size;
+} FDTRegRegion_t;
 
 // Helper functions
 static inline uint32_t read_be32(const void* pointer);
@@ -99,9 +121,28 @@ static void path_push(FDTPathStack_t* stack, const char* name, size_t length);
 static void path_pop(FDTPathStack_t* stack);
 static void path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size);
 static int path_equals_str(const FDTPathStack_t* stack, const char* path);
+static int path_equals_abs(const FDTPathStack_t* stack, const char* path);
 
+// FDT aliases
 static void alias_add(FDTAliasTable_t* table, const char* key, const char* value);
 static const char* alias_lookup(const FDTAliasTable_t* table, const char* key);
+
+// FDT stdout
+static const char* stdout_trim(const char* string, char* output, size_t size);
+static void chosen_stdout(const FDTProp_t* prop, const FDTAliasTable_t* aliases, FDTStdOut_t* output);
+
+// Address size stuff
+static void asf_init_root(FDTAddressSizeStack_t* stack, unsigned int address_cells_root, unsigned int size_cells_root);
+static void asf_push_child(FDTAddressSizeStack_t* stack);
+static void asf_pop(FDTAddressSizeStack_t* stack);
+static FDTAddressSizeFrame_t* asf_top(FDTAddressSizeStack_t* stack);
+
+// FDT reg
+static uint64_t be_cells_to_u64(const uint8_t* pointer, size_t cell_count);
+static int reg_decode_regions(const FDTProp_t* prop, int address_cells, int size_cells, FDTRegRegion_t* regions, int max_regions);
+
+// FDT UART stdout
+static int fdt_resolve_stdout_uart(const FDTView_t* fdt, uint64_t* base, uint64_t* size, const char** path, const char** compatible);
 
 // Mini_lib because I'm trying to avoid libc
 extern int strcmp(const char*, const char*);

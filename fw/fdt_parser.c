@@ -291,3 +291,112 @@ static const char* alias_lookup(const FDTAliasTable_t* table, const char* key) {
 
     return NULL; // Not found
 }
+
+// Removes colon and everything after (e.g. "serial0:115200" -> "serial0")
+static const char* stdout_trim(const char* string, char* output, size_t size) {
+    if (!string || !output || size == 0) return NULL; // Bad input
+
+    size_t i = 0;
+    while (string[i] && string[i] != ':' && i + 1 < size) {
+        output[i] = string[i];
+        i++;
+    }
+
+    output[i] = '\0'; // Null-terminate
+    return output;
+}
+
+// Find abs path from /chosen stdout
+static void chosen_stdout(const FDTProp_t* prop, const FDTAliasTable_t* aliases, FDTStdOut_t* output) {
+    if (!prop || !aliases || !output) return; // Bad input
+
+    output->raw = (const char *) prop->value;
+    char token[128];
+
+    stdout_trim(output->raw, token, sizeof(token));
+    if (token[0] == '/') {
+        output->abs_path = token; // Absolute path
+    } else {
+        output->abs_path = alias_lookup(aliases, token); // Lookup alias
+    }
+}
+
+static int path_equals_abs(const FDTPathStack_t* stack, const char* path) {
+    if (!stack || !path) return 0; // Bad input
+
+    char buffer[256];
+    path_join(stack, buffer, sizeof(buffer));
+    return (strcmp(buffer, path) == 0);
+}
+
+// Address size frame functions
+static void asf_init_root(FDTAddressSizeStack_t* stack, unsigned int address_cells_root, unsigned int size_cells_root) {
+    if (!stack) return; // Bad input
+
+    stack->depth = 0;
+    FDTAddressSizeFrame_t root = {
+        .reg_address_cells = address_cells_root,
+        .reg_size_cells = size_cells_root,
+        .child_address_cells = address_cells_root,
+        .child_size_cells = size_cells_root
+    };
+
+    stack->frames[stack->depth++] = root;
+}
+
+static void asf_push_child(FDTAddressSizeStack_t* stack) {
+    if (!stack || stack->depth == 0 || stack->depth >= 32) return; // Bad input or stack full
+
+    FDTAddressSizeFrame_t parent = stack->frames[stack->depth - 1];
+    FDTAddressSizeFrame_t child = {
+        .reg_address_cells = parent.child_address_cells,
+        .reg_size_cells = parent.child_size_cells,
+        .child_address_cells = parent.child_address_cells,
+        .child_size_cells = parent.child_size_cells
+    };
+
+    stack->frames[stack->depth++] = child;
+}
+
+static void asf_pop(FDTAddressSizeStack_t* stack) {
+    if (!stack || stack->depth == 0) return; // Bad input or stack empty
+    stack->depth--;
+}
+
+static FDTAddressSizeFrame_t* asf_top(FDTAddressSizeStack_t* stack) {
+    if (!stack || stack->depth == 0) return NULL; // Bad input or stack empty
+    return &stack->frames[stack->depth - 1];
+}
+
+static uint64_t be_cells_to_u64(const uint8_t* pointer, size_t cell_count) {
+    if (!pointer || cell_count == 0 || cell_count > 2) return 0; // Bad input
+
+    uint64_t result = 0;
+    for (int i = 0; i < cell_count; i++) {
+        uint32_t cell = read_be32(pointer + (i * 4u));
+        result = (result << 32) | (uint64_t) cell;
+    }
+
+    return result;
+}
+
+static int reg_decode_regions(const FDTProp_t* prop, int address_cells, int size_cells, FDTRegRegion_t* output, int max_regions) {
+    if (!prop || !region || max_regions == 0 || address_cells <= 0 || size_cells <= 0) return -1; // Bad input
+    if (!prop || prop->length == 0) return -2; // No prop
+
+    const int stride = (address_cells + size_cells) * 4u;
+    if (stride <= 0 || (prop->length % stride) != 0) return -3; // Invalid prop length
+
+    int region_count = (int) (prop->length / stride);
+    if (region_count > max_regions) {
+        region_count = max_regions; // Limit to max regions
+    }
+
+    const uint8_t* pointer = (const uint8_t*) prop->value;
+    for (int i = 0; i < region_count; i++) {
+        output[i].base = be_cells_to_u64(pointer, address_cells);
+        output[i].size = be_cells_to_u64(pointer + (address_cells * 4u), size_cells);
+    }
+
+    return region_count; // Return number of regions decoded
+}

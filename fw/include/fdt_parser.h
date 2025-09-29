@@ -79,13 +79,14 @@ typedef struct {
 } FDTAlias_t;
 
 typedef struct {
-    FDTAlias_t* entries[32];
+    FDTAlias_t entries[32];
     size_t count;
 } FDTAliasTable_t;
 
 typedef struct {
     const char* raw;
     const char* abs_path;
+    char abs_buffer[128];
 } FDTStdOut_t;
 
 typedef struct {
@@ -108,8 +109,8 @@ typedef struct {
 } FDTRegRegion_t;
 
 // Helper functions
-static inline uint32_t read_be32(const void* pointer);
-static inline uint64_t read_be64(const void* pointer);
+uint32_t read_be32(const void* pointer);
+uint64_t read_be64(const void* pointer);
 static inline const unsigned char* fdt_align4(const unsigned char* base, const unsigned char* pointer);
 static int in_bounds(const FDTView_t* fdt, const void* pointer, size_t length);
 static int strlen_bounded(const char* pointer, size_t max_length, size_t* out_length);
@@ -119,7 +120,7 @@ int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char*
 // FDT path
 static void path_push(FDTPathStack_t* stack, const char* name, size_t length);
 static void path_pop(FDTPathStack_t* stack);
-static void path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size);
+static const char* path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size);
 static int path_equals_str(const FDTPathStack_t* stack, const char* path);
 static int path_equals_abs(const FDTPathStack_t* stack, const char* path);
 
@@ -139,15 +140,16 @@ static FDTAddressSizeFrame_t* asf_top(FDTAddressSizeStack_t* stack);
 
 // FDT reg
 static uint64_t be_cells_to_u64(const uint8_t* pointer, size_t cell_count);
-static int reg_decode_regions(const FDTProp_t* prop, int address_cells, int size_cells, FDTRegRegion_t* regions, int max_regions);
+static int reg_decode_regions(const FDTProp_t* prop, int address_cells, int size_cells, FDTRegRegion_t* output, int max_regions);
 
 // FDT UART stdout
-static int fdt_resolve_stdout_uart(const FDTView_t* fdt, uint64_t* base, uint64_t* size, const char** path, const char** compatible);
+int fdt_resolve_stdout_uart(const FDTView_t* fdt, uint64_t* base, uint64_t* size, const char** path, const char** compatible);
 
 // Mini_lib because I'm trying to avoid libc
 extern int strcmp(const char*, const char*);
 extern size_t strlen(const char*);
 extern int memcmp(const void*, const void*, size_t);
+extern void* memcpy(void*, const void*, size_t);
 
 // FDT Prop helpers
 int fdt_prop_is(const FDTProp_t* prop, const char* name);

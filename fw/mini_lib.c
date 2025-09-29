@@ -36,3 +36,31 @@ int memcmp(const void* a, const void* b, size_t n) {
 
     return 0;
 }
+
+void* memset(void* destination, int value, size_t n) {
+    unsigned char* d = (unsigned char*) destination;
+    unsigned char v = (unsigned char) value;
+    for (size_t i = 0; i < n; i++) {
+        d[i] = v;
+    }
+
+    return destination;
+}
+
+void memmove(void* destination, const void* source, size_t n) {
+    unsigned char* dest = (unsigned char*) destination;
+    const unsigned char* src = (const unsigned char*) source;
+
+    if (dest == src || n == 0) return;
+
+    if (dest < src) {
+        for (size_t i = 0; i < n; i++) {
+            dest[i] = src[i];
+        }
+    } else if (dest > src) {
+        for (size_t i = n; i != 0; i--) {
+            dest[i - 1] = src[i - 1];
+        }
+    }
+}
+

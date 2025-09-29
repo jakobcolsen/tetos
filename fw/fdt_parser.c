@@ -2,13 +2,13 @@
 
 // FDT uses big-endian while RISC-V uses little endian. 
 // This fixes that.
-static inline uint32_t read_be32(const void* pointer) {
+uint32_t read_be32(const void* pointer) {
     const unsigned char* p = (const unsigned char*) pointer;
     return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16)
            | ((uint32_t)p[2] << 8) | (uint32_t)p[3];
 }
 
-static inline uint64_t read_be64(const void* pointer) {
+uint64_t read_be64(const void* pointer) {
     const unsigned char* p = (const unsigned char*) pointer;
     return ((uint64_t)p[0] << 56) | ((uint64_t)p[1] << 48)
            | ((uint64_t)p[2] << 40) | ((uint64_t)p[3] << 32)
@@ -192,7 +192,7 @@ int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char*
 }
 
 // FDT path functions
-static const char* path_push(FDTPathStack_t* stack, const char* name, size_t length) {
+static void path_push(FDTPathStack_t* stack, const char* name, size_t length) {
     if (!stack || !name || length == 0 || stack->depth >= 32) return; // Bad input or stack full
 
     stack->paths[stack->depth].string = name;
@@ -206,8 +206,8 @@ static void path_pop(FDTPathStack_t* stack) {
 }
 
 // Joins the current path stack into a single string, separated by '/'.
-static void path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size) {
-    if (!stack || !buffer || buffer_size == 0) return; // Bad input
+static const char* path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size) {
+    if (!stack || !buffer || buffer_size == 0) return NULL; // Bad input
 
     size_t position = 0;
     if (buffer_size == 0) return buffer; // No space for anything
@@ -218,11 +218,11 @@ static void path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_s
             if (position < buffer_size)  {
                 buffer[position++] = '/'; // Separator
             }
-
-            for (int j = 0; j < stack->paths[i].length; j++) {
-                if (position < buffer_size) {
-                    buffer[position++] = stack->paths[i].string[j];
-                }
+        }
+        
+        for (int j = 0; j < stack->paths[i].length; j++) {
+            if (position < buffer_size) {
+                buffer[position++] = stack->paths[i].string[j];
             }
         }
     }
@@ -311,11 +311,18 @@ static void chosen_stdout(const FDTProp_t* prop, const FDTAliasTable_t* aliases,
     if (!prop || !aliases || !output) return; // Bad input
 
     output->raw = (const char *) prop->value;
-    char token[128];
+    char token[sizeof(output->abs_buffer)];
 
     stdout_trim(output->raw, token, sizeof(token));
     if (token[0] == '/') {
-        output->abs_path = token; // Absolute path
+        size_t length = strlen(token);
+        if (length >= sizeof(output->abs_buffer)) {
+            length = sizeof(output->abs_buffer) - 1; // clamp for null terminator
+        }
+
+        memcpy(output->abs_buffer, token, length);
+        output->abs_buffer[length] = '\0';   // manual null-termination
+        output->abs_path = output->abs_buffer;
     } else {
         output->abs_path = alias_lookup(aliases, token); // Lookup alias
     }
@@ -381,7 +388,7 @@ static uint64_t be_cells_to_u64(const uint8_t* pointer, size_t cell_count) {
 }
 
 static int reg_decode_regions(const FDTProp_t* prop, int address_cells, int size_cells, FDTRegRegion_t* output, int max_regions) {
-    if (!prop || !region || max_regions == 0 || address_cells <= 0 || size_cells <= 0) return -1; // Bad input
+    if (!prop || !output || max_regions == 0 || address_cells <= 0 || size_cells <= 0) return -1; // Bad input
     if (!prop || prop->length == 0) return -2; // No prop
 
     const int stride = (address_cells + size_cells) * 4u;
@@ -396,7 +403,149 @@ static int reg_decode_regions(const FDTProp_t* prop, int address_cells, int size
     for (int i = 0; i < region_count; i++) {
         output[i].base = be_cells_to_u64(pointer, address_cells);
         output[i].size = be_cells_to_u64(pointer + (address_cells * 4u), size_cells);
+        pointer += stride;
     }
 
     return region_count; // Return number of regions decoded
+}
+
+// This will have to be generalized later for virtio and others
+int fdt_resolve_stdout_uart(const FDTView_t* fdt, uint64_t* base, uint64_t* size, const char** path, const char** compatible)
+{
+    if (!fdt || !base || !size || !path || !compatible) return -1; // Bad input
+
+    // Pass 1: collect /aliases and resolve /chosen stdout path
+    FDTAliasTable_t aliases = { .count = 0 };
+    FDTStdOut_t stdout_info = { .raw = NULL, .abs_path = NULL };
+
+    {
+        FDTCursor_t cursor = { .current = fdt->struct_begin, .end = fdt->struct_end };
+        FDTPathStack_t path_stack = { .depth = 0 };
+        FDTToken_t token;
+        const char* name = NULL;
+        FDTProp_t prop;
+
+        while (1) {
+            int node = fdt_next(&cursor, (FDTView_t*) fdt, &token, &name, &prop);
+            if (node == 1) break;
+            if (node < 0) return -2;
+
+            switch (token) {
+                case FDT_BEGIN_NODE:
+                    path_push(&path_stack, name, strlen(name));
+                    break;
+
+                case FDT_END_NODE:
+                    path_pop(&path_stack);
+                    break;
+
+                case FDT_PROP: {
+                    // /aliases: store every key -> string value
+                    if (path_stack.depth == 1 &&
+                        path_stack.paths[0].length == 7 &&
+                        memcmp(path_stack.paths[0].string, "aliases", 7) == 0)
+                    {
+                        const char* key = (const char*)prop.name;
+                        const char* value = (const char*)prop.value;
+                        size_t val_len;
+                        if (strlen_bounded(value, prop.length, &val_len)) {
+                            alias_add(&aliases, key, value);
+                        }
+                    }
+
+                    // /chosen: capture stdout-path (preferred) or stdout
+                    if (path_stack.depth == 1 &&
+                        path_stack.paths[0].length == 6 &&
+                        memcmp(path_stack.paths[0].string, "chosen", 6) == 0)
+                    {
+                        if (fdt_prop_is(&prop, "stdout-path") || fdt_prop_is(&prop, "stdout")) {
+                            chosen_stdout(&prop, &aliases, &stdout_info);
+                        }
+                    }
+                } break;
+
+                default: break;
+            }
+        }
+    }
+
+    if (!stdout_info.abs_path) return -3; // couldn't resolve /chosen stdout path
+
+    // -------- Pass 2: walk to the stdout node, track addr/size cells, read reg --------
+    {
+        FDTCursor_t cursor = { .current = fdt->struct_begin, .end = fdt->struct_end };
+        FDTPathStack_t path_stack = { .depth = 0 };
+        FDTAddressSizeStack_t address_stack;
+        // Reasonable defaults if root omits them (common on some blobs)
+        asf_init_root(&address_stack, /*address_cells_root=*/2, /*size_cells_root=*/2);
+
+        FDTToken_t token;
+        const char* name = NULL;
+        FDTProp_t prop;
+
+        uint64_t found_base = 0, found_size = 0;
+        const char* found_compatible = NULL;
+        int have_region = 0;
+
+        while (1) {
+            int node = fdt_next(&cursor, (FDTView_t*)fdt, &token, &name, &prop);
+            if (node == 1) break;
+            if (node < 0) return -4;
+
+            switch (token) {
+                case FDT_BEGIN_NODE:
+                    path_push(&path_stack, name, strlen(name));
+                    asf_push_child(&address_stack);
+                    break;
+
+                case FDT_END_NODE:
+                    asf_pop(&address_stack);
+                    path_pop(&path_stack);
+                    break;
+
+                case FDT_PROP: {
+                    FDTAddressSizeFrame_t* address_frame = asf_top(&address_stack);
+                    if (!address_frame) return -5;
+
+                    // Update child address/size cells for this subtree
+                    if (fdt_prop_is(&prop, "#address-cells")) {
+                        uint32_t v;
+                        if (fdt_prop_read_u32(&prop, &v, 0)) address_frame->child_address_cells = v;
+                    } else if (fdt_prop_is(&prop, "#size-cells")) {
+                        uint32_t v;
+                        if (fdt_prop_read_u32(&prop, &v, 0)) address_frame->child_size_cells = v;
+                    }
+
+                    // Are we at the resolved stdout node?
+                    if (path_equals_abs(&path_stack, stdout_info.abs_path)) {
+                        if (fdt_prop_is(&prop, "compatible") && !found_compatible) {
+                            // Use the start of the stringlist
+                            found_compatible = (const char*)prop.value;
+                        } else if (fdt_prop_is(&prop, "reg") && !have_region) {
+                            FDTRegRegion_t region;
+                            int n = reg_decode_regions(&prop,
+                                                       (int)address_frame->reg_address_cells,
+                                                       (int)address_frame->reg_size_cells,
+                                                       &region, 1);
+                            if (n > 0) {
+                                found_base = region.base;
+                                found_size = region.size;
+                                have_region = 1;
+                            }
+                        }
+                    }
+                } break;
+
+                default: break;
+            }
+        }
+
+        if (!have_region) return -6;
+
+        *base = found_base;
+        *size = found_size;
+        *path = stdout_info.abs_path;         // absolute path like "/soc/uart@10000000"
+        *compatible = found_compatible ? found_compatible : ""; // may be a stringlist; first is fine
+        return 0;
+    }
 }

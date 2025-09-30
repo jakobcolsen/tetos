@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifndef UART_H
+#define UART_H
+
 // This is a big one:
 // __attribute__((packed)) ensures no padding is added by the compiler, this is necessary
 // because we are overlaying this struct on top of memory-mapped hardware registers.
@@ -25,3 +28,5 @@ typedef struct __attribute__((packed)) {
 void uart_init(uintptr_t base);
 void uart_putc(uintptr_t base, char c);
 void uart_puts(uintptr_t base, const char* str);
+
+#endif // UART_H

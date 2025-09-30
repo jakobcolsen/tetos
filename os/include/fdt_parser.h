@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
+#include <mini_lib.h>
 
 #ifndef FDT_PARSER_H
 #define FDT_PARSER_H
@@ -111,51 +112,8 @@ typedef struct {
 // Helper functions
 uint32_t read_be32(const void* pointer);
 uint64_t read_be64(const void* pointer);
-static inline const unsigned char* fdt_align4(const unsigned char* base, const unsigned char* pointer);
-static int in_bounds(const FDTView_t* fdt, const void* pointer, size_t length);
-static int strlen_bounded(const char* pointer, size_t max_length, size_t* out_length);
 int fdt_init(FDTView_t* fdt, const void* blob, size_t size);
 int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char** name, FDTProp_t* prop);
-
-// FDT path
-static void path_push(FDTPathStack_t* stack, const char* name, size_t length);
-static void path_pop(FDTPathStack_t* stack);
-static const char* path_join(const FDTPathStack_t* stack, char* buffer, size_t buffer_size);
-static int path_equals_str(const FDTPathStack_t* stack, const char* path);
-static int path_equals_abs(const FDTPathStack_t* stack, const char* path);
-
-// FDT aliases
-static void alias_add(FDTAliasTable_t* table, const char* key, const char* value);
-static const char* alias_lookup(const FDTAliasTable_t* table, const char* key);
-
-// FDT stdout
-static const char* stdout_trim(const char* string, char* output, size_t size);
-static void chosen_stdout(const FDTProp_t* prop, const FDTAliasTable_t* aliases, FDTStdOut_t* output);
-
-// Address size stuff
-static void asf_init_root(FDTAddressSizeStack_t* stack, unsigned int address_cells_root, unsigned int size_cells_root);
-static void asf_push_child(FDTAddressSizeStack_t* stack);
-static void asf_pop(FDTAddressSizeStack_t* stack);
-static FDTAddressSizeFrame_t* asf_top(FDTAddressSizeStack_t* stack);
-
-// FDT reg
-static uint64_t be_cells_to_u64(const uint8_t* pointer, size_t cell_count);
-static int reg_decode_regions(const FDTProp_t* prop, int address_cells, int size_cells, FDTRegRegion_t* output, int max_regions);
-
-// FDT UART stdout
 int fdt_resolve_stdout_uart(const FDTView_t* fdt, uint64_t* base, uint64_t* size, const char** path, const char** compatible);
-
-// Mini_lib because I'm trying to avoid libc
-extern int strcmp(const char*, const char*);
-extern size_t strlen(const char*);
-extern int memcmp(const void*, const void*, size_t);
-extern void* memcpy(void*, const void*, size_t);
-
-// FDT Prop helpers
-int fdt_prop_is(const FDTProp_t* prop, const char* name);
-int fdt_prop_next_string(const FDTProp_t* prop, const char** output, size_t* cursor);
-int fdt_prop_stringlist_contains(const FDTProp_t* prop, const char* string);
-int fdt_prop_read_u32(const FDTProp_t* prop, uint32_t* output, size_t index);
-int fdt_prop_read_u64(const FDTProp_t* prop, uint64_t* output, size_t index);
 
 #endif // FDT_PARSER_H

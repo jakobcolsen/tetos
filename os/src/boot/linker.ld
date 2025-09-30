@@ -1,11 +1,11 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-MEMORY { RAM (rxw) : ORIGIN = 0x80000000, LENGTH = 256M }
+MEMORY { RAM (rxw) : ORIGIN = 0x80000000, LENGTH = 128M }
 
 SECTIONS {
     . = ORIGIN(RAM); /* Boot address for QEMU virt */
-
-    .text : { *(.text*) } > RAM /* Actual Code */
+    .text : { KEEP(*(.text.start)) 
+            *(.text*) } > RAM /* Actual Code */
     .rodata : { *(.rodata) } > RAM /* Read-only data */
     .data : { *(.data*) } > RAM
     .bss : { *(.bss*) *(COMMON) } > RAM /* Unintialized variables */

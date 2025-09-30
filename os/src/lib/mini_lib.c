@@ -1,5 +1,4 @@
-#include <stdint.h>
-#include <stddef.h>
+#include <mini_lib.h>
 
 void* memcpy(void* dest, const void* src, size_t n) {
     char *d = (char*) dest;
@@ -47,7 +46,7 @@ void* memset(void* destination, int value, size_t n) {
     return destination;
 }
 
-void memmove(void* destination, const void* source, size_t n) {
+void* memmove(void* destination, const void* source, size_t n) {
     unsigned char* dest = (unsigned char*) destination;
     const unsigned char* src = (const unsigned char*) source;
 

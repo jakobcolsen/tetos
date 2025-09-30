@@ -1,5 +1,5 @@
 #include <fdt_parser.h>
-#include <uart.h>
+#include <kprintf.h>
 
 void sbi_init(const void* fdt_blob) {
     // Build a view of the FDT
@@ -41,6 +41,8 @@ void sbi_init(const void* fdt_blob) {
     uart_init(g_uart_base);
 
     // TetOS IS ALIVE
-    uart_puts("BOOT: TetOS SBI early console ready\n");
-    uart_puts("Baguette crumbs of a new OS...\n");
+    kprintf("BOOT: FDT UART FOUND! @0x%x!\n", g_uart_base);
+    kprintf("Baguette crumbs of a new OS...\n");
+    kprintf("Test kprintf: char '%c', string \"%s\", int %d, uint %u, hex 0x%x, percent %%, nothing %t\n",
+            'A', "Stringing a chorus out of tune!", -1234, 5678u, 0x9abc);
 }

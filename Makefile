@@ -7,61 +7,62 @@ CROSS   = riscv64-unknown-elf-
 CC      = $(CROSS)gcc
 OBJCOPY = $(CROSS)objcopy
 OBJDUMP = $(CROSS)objdump
+READELF = $(CROSS)readelf
+NM      = $(CROSS)nm
 
-# ===== Cross-platform shell utils =====
-ifeq ($(OS),Windows_NT)
-  MKDIR = mkdir
-  RMDIR = rmdir /S /Q
-  FIXPATH = $(subst /,\,$1)
-else
-  MKDIR = mkdir -p
-  RMDIR = rm -rf
-  FIXPATH = $1
-endif
-
-# Works whether you run from repo root (with os/…) or inside os/.
-SRCDIRS_CANDIDATES := os/src src . \
-                      os/src/boot os/src/kernel os/src/drivers os/src/lib os/src/fdt \
-                      src/boot src/kernel src/drivers src/lib src/fdt
-INCDIRS_CANDIDATES := os/include include .
-
-# Only keep those that actually exist
-SRCDIRS := $(foreach d,$(SRCDIRS_CANDIDATES),$(if $(wildcard $(d)),$(d),))
-INCDIRS := $(foreach d,$(INCDIRS_CANDIDATES),$(if $(wildcard $(d)),$(d),))
-
-# Collect sources
-CFILES  := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.c))
-ASM     := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.s))
-
-# Prefer linker in boot/, else fallback to ./linker.ld
-LINKER  := $(firstword \
-            $(foreach d,$(SRCDIRS),$(wildcard $(d:/src/%=/boot)/linker.ld)) \
-            $(wildcard linker.ld))
+# ===== Project layout (run make from repo root) =====
+SRCDIRS = os/src os/src/boot os/src/kernel os/src/drivers os/src/lib os/src/fdt
+INCDIRS = os/include .
 
 # ===== Output =====
 TARGET   = tetos
 BUILDDIR = build
 
-# Objects mirror source tree under build/
-OBJS = $(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES)) \
-       $(patsubst %.s,$(BUILDDIR)/%.o,$(ASM))
-
-# ===== Flags =====
-INCLUDES = $(foreach d,$(INCDIRS),-I$(d))
-RISCV_ISA  = -march=rv64imac
-RISCV_ABI  = -mabi=lp64
+# ===== RISC-V flags (no F/D, soft-float ABI) =====
+RISCV_ISA = -march=rv64imac
+RISCV_ABI = -mabi=lp64
 
 CFLAGS  = -Wall -Wextra -ffreestanding -nostdlib -nostartfiles -O2 \
           -mcmodel=medany $(RISCV_ISA) $(RISCV_ABI) \
-          $(INCLUDES)
+          $(foreach d,$(INCDIRS),-I$(d))
+# Prefer boot linker if present
+LINKER  := $(firstword $(wildcard os/src/boot/linker.ld linker.ld))
+LDFLAGS = -T $(LINKER) -nostdlib -Wl,-Map=$(TARGET).map \
+          -mcmodel=medany $(RISCV_ISA) $(RISCV_ABI)
 
-LDFLAGS = -T $(LINKER) -nostdlib -mcmodel=medany $(RISCV_ISA) $(RISCV_ABI)
-
-ifeq ($(strip $(LINKER)),)
-  $(error No linker script found (looked for */boot/linker.ld or ./linker.ld))
+# ===== Windows / Unix portability helpers =====
+ifeq ($(OS),Windows_NT)
+  # Path fix (not strictly needed for GCC, but for shell cmds)
+  FIXPATH = $(subst /,\,$1)
+  # mkdir that only runs when needed and never errors if exists
+  MKDIR_P = if not exist "$(call FIXPATH,$(dir $@))" mkdir "$(call FIXPATH,$(dir $@))"
+  RM_RDIR = rmdir /S /Q
+  RM_FILE = del /Q
+  NULL    = 2> NUL
+else
+  FIXPATH = $1
+  MKDIR_P = mkdir -p $(dir $@)
+  RM_RDIR = rm -rf
+  RM_FILE = rm -f
+  NULL    =
 endif
-ifeq ($(strip $(CFILES) $(ASM)),)
-  $(error No source files found in $(SRCDIRS). Put .c/.S in src/… or os/src/…)
+
+# ===== Source discovery (portable, no external 'find') =====
+CFILES := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.c))
+ASMS   := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.[sS]))
+
+# Build object paths mirroring source tree under build/
+OBJS = \
+  $(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES)) \
+  $(patsubst %.S,$(BUILDDIR)/%.o,$(filter %.S,$(ASMS))) \
+  $(patsubst %.s,$(BUILDDIR)/%.o,$(filter %.s,$(ASMS)))
+
+# ===== Sanity guards =====
+ifeq ($(strip $(LINKER)),)
+  $(error No linker script found (looked for os/src/boot/linker.ld or ./linker.ld))
+endif
+ifeq ($(strip $(CFILES) $(ASMS)),)
+  $(error No source files found in $(SRCDIRS). Put .c/.s/.S in os/src/... )
 endif
 
 # ===== Default =====
@@ -69,14 +70,18 @@ all: $(TARGET).elf $(TARGET).bin
 
 # ===== Compile rules (Windows-safe mkdir) =====
 $(BUILDDIR)/%.o: %.c
-	@$(MKDIR) $(call FIXPATH,$(dir $@))
+	@$(MKDIR_P)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/%.o: %.S
+	@$(MKDIR_P)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILDDIR)/%.o: %.s
-	@$(MKDIR) $(call FIXPATH,$(dir $@))
+	@$(MKDIR_P)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# ===== Link / tools =====
+# ===== Link & tools =====
 $(TARGET).elf: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
@@ -87,26 +92,30 @@ dump: $(TARGET).elf
 	$(OBJDUMP) -D $< > $(TARGET).lst
 	@echo "Disassembly written to $(TARGET).lst"
 
-run: $(TARGET).elf
-	qemu-system-riscv64 -machine virt -nographic -bios none -kernel $(TARGET).elf
-
 list:
 	@echo SRCDIRS: $(SRCDIRS)
 	@echo INCDIRS: $(INCDIRS)
 	@echo LINKER : $(LINKER)
 	@echo CFILES : $(CFILES)
-	@echo ASM    : $(ASM)
+	@echo ASMS   : $(ASMS)
 	@echo OBJS   : $(OBJS)
+
+run: $(TARGET).elf
+	qemu-system-riscv64 -machine virt -nographic -bios none -kernel $(TARGET).elf
+
+trace: $(TARGET).elf
+	qemu-system-riscv64 -machine virt -nographic -serial mon:stdio -bios none -kernel $(TARGET).elf -d guest_errors,unimp,mmu
 
 clean:
 ifeq ($(OS),Windows_NT)
-	-$(RMDIR) $(call FIXPATH,$(BUILDDIR)) 2> NUL
-	-del /Q $(call FIXPATH,$(TARGET).elf) 2> NUL || exit 0
-	-del /Q $(call FIXPATH,$(TARGET).bin) 2> NUL || exit 0
-	-del /Q $(call FIXPATH,$(TARGET).map) 2> NUL || exit 0
+	-$(RM_RDIR) $(call FIXPATH,$(BUILDDIR)) $(NULL)
+	-$(RM_FILE) $(call FIXPATH,$(TARGET).elf) $(NULL) || exit 0
+	-$(RM_FILE) $(call FIXPATH,$(TARGET).bin) $(NULL) || exit 0
+	-$(RM_FILE) $(call FIXPATH,$(TARGET).map) $(NULL) || exit 0
+	-$(RM_FILE) $(call FIXPATH,$(TARGET).lst) $(NULL) || exit 0
 else
-	-$(RMDIR) $(call FIXPATH,$(BUILDDIR))
-	-rm -f $(TARGET).elf $(TARGET).bin $(TARGET).map
+	-$(RM_RDIR) $(BUILDDIR)
+	-$(RM_FILE) $(TARGET).elf $(TARGET).bin $(TARGET).map $(TARGET).lst
 endif
 
-.PHONY: all clean dump run list
+.PHONY: all clean dump run run256 trace list

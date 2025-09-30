@@ -1,4 +1,4 @@
-#include "include/fdt_parser.h"
+#include <fdt_parser.h>
 
 // FDT uses big-endian while RISC-V uses little endian. 
 // This fixes that.
@@ -16,7 +16,7 @@ uint64_t read_be64(const void* pointer) {
            | ((uint64_t)p[6] << 8) | (uint64_t)p[7];
 }
 
-static inline const unsigned char* fdt_align4(const unsigned char* base, const unsigned char* pointer) {
+const unsigned char* fdt_align4(const unsigned char* base, const unsigned char* pointer) {
     uintptr_t offset = (uintptr_t) (pointer - base);
     offset = (offset + 3u) & ~3u; // Align to next multiple of 4
     return (const unsigned char*) (base + offset);
@@ -75,11 +75,14 @@ int fdt_init(FDTView_t* fdt, const void* blob, size_t size) {
 }
 
 // FDT Prop functions
-int fdt_prop_is(const FDTProp_t* prop, const char* name) {
+static int fdt_prop_is(const FDTProp_t* prop, const char* name) {
     return (strcmp((const char*) prop->name, name) == 0);
 }
 
-int fdt_prop_next_string(const FDTProp_t* prop, const char** output, size_t* cursor) {
+
+// Not used now but might be useful later
+/*
+static int fdt_prop_next_string(const FDTProp_t* prop, const char** output, size_t* cursor) {
     if (!output || !cursor) return 0; // Bad input
     if (*cursor >= prop->length) return 0; // Out of bounds
 
@@ -91,8 +94,11 @@ int fdt_prop_next_string(const FDTProp_t* prop, const char** output, size_t* cur
     *cursor += string_length + 1; // Move cursor past this string and NULL terminator
     return 1; // Success
 }
+*/
 
-int fdt_prop_stringlist_contains(const FDTProp_t* prop, const char* string) {
+// Not used now but might be useful later
+/*
+static int fdt_prop_stringlist_contains(const FDTProp_t* prop, const char* string) {
     const char* current = NULL;
     size_t offset = 0;
     while (fdt_prop_next_string(prop, &current, &offset)) {
@@ -101,7 +107,9 @@ int fdt_prop_stringlist_contains(const FDTProp_t* prop, const char* string) {
     
     return 0; // Not found
 }
-int fdt_prop_read_u32(const FDTProp_t* prop, uint32_t* output, size_t index) {
+*/
+
+static int fdt_prop_read_u32(const FDTProp_t* prop, uint32_t* output, size_t index) {
     if (!output) return 0; // Bad input
 
     size_t offset = index * 4u;
@@ -111,7 +119,9 @@ int fdt_prop_read_u32(const FDTProp_t* prop, uint32_t* output, size_t index) {
     return 1; // Success
 }
 
-int fdt_prop_read_u64(const FDTProp_t* prop, uint64_t* output, size_t index) {
+// Not used now but might be useful later
+/*
+static int fdt_prop_read_u64(const FDTProp_t* prop, uint64_t* output, size_t index) {
     if (!output) return 0; // Bad input
 
     size_t offset = index * 8u;
@@ -120,6 +130,7 @@ int fdt_prop_read_u64(const FDTProp_t* prop, uint64_t* output, size_t index) {
 
     return 1; // Success
 }
+*/
 
 int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char** name, FDTProp_t* prop) {
     if (!cursor || !fdt || !token) return -1; // Bad input
@@ -160,7 +171,7 @@ int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char*
             if ((size_t) (cursor->end - cursor->current) < prop_length) return -5; // Not enough space for prop value
 
             if (prop) {
-                prop->name = (const char*) (fdt->strings_begin + name_offset);
+                prop->name = (const unsigned char*) (fdt->strings_begin + name_offset);
                 prop->name_offset = name_offset;
                 prop->value = (const void*) cursor->current;
                 prop->length = prop_length;
@@ -213,14 +224,14 @@ static const char* path_join(const FDTPathStack_t* stack, char* buffer, size_t b
     if (buffer_size == 0) return buffer; // No space for anything
     buffer[position++] = '/'; // Start with root
 
-    for (int i = 0; i < stack->depth; i++) {
+    for (size_t i = 0; i < stack->depth; i++) {
         if (i > 0) {
             if (position < buffer_size)  {
                 buffer[position++] = '/'; // Separator
             }
         }
         
-        for (int j = 0; j < stack->paths[i].length; j++) {
+        for (size_t j = 0; j < stack->paths[i].length; j++) {
             if (position < buffer_size) {
                 buffer[position++] = stack->paths[i].string[j];
             }
@@ -235,7 +246,9 @@ static const char* path_join(const FDTPathStack_t* stack, char* buffer, size_t b
     return buffer;
 }
 
+// Not used now but might be useful later
 // Compares the current path stack to a given path string (e.g. "/soc/uart@10000000").
+/*
 static int path_equals_str(const FDTPathStack_t* stack, const char* path) {
     if (!stack || !path) return 0; // Bad input
 
@@ -269,6 +282,7 @@ static int path_equals_str(const FDTPathStack_t* stack, const char* path) {
 
     return path[index] == '\0'; // Ensure we've reached the end of the input path
 }
+*/
 
 // Log file - O(1) add
 static void alias_add(FDTAliasTable_t* table, const char* key, const char* value) {
@@ -283,7 +297,7 @@ static void alias_add(FDTAliasTable_t* table, const char* key, const char* value
 static const char* alias_lookup(const FDTAliasTable_t* table, const char* key) {
     if (!table || !key) return NULL; // Bad input
 
-    for (int i = 0; i < table->count; i++) {
+    for (size_t i = 0; i < table->count; i++) {
         if (strcmp(table->entries[i].key, key) == 0) {
             return table->entries[i].value;
         }
@@ -379,7 +393,7 @@ static uint64_t be_cells_to_u64(const uint8_t* pointer, size_t cell_count) {
     if (!pointer || cell_count == 0 || cell_count > 2) return 0; // Bad input
 
     uint64_t result = 0;
-    for (int i = 0; i < cell_count; i++) {
+    for (size_t i = 0; i < cell_count; i++) {
         uint32_t cell = read_be32(pointer + (i * 4u));
         result = (result << 32) | (uint64_t) cell;
     }

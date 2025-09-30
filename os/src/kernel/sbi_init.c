@@ -1,4 +1,5 @@
-#include "include/fdt_parser.h"
+#include <fdt_parser.h>
+#include <uart.h>
 
 // Global for UART
 static volatile uintptr_t g_uart_base = 0;   // filled by FDT
@@ -6,48 +7,6 @@ static uint64_t g_uart_size = 0;   // (not used yet, but handy to keep)
 static const char* g_uart_path = 0;   // e.g., "/soc/uart@10000000"
 static const char* g_uart_compat = 0; // e.g., "ns16550a"
 
-// This is a big one:
-// __attribute__((packed)) ensures no padding is added by the compiler, this is necessary
-// because we are overlaying this struct on top of memory-mapped hardware registers.
-
-// Union is used for registers that share the same address, depending on context.
-// NS16550 has DLAB bit in LCR to switch between RBR/THR and DLL/DLH.
-
-// https://bitsavers.trailing-edge.com/components/national/_appNotes/AN-0491.pdf
-typedef struct __attribute__((packed)) {
-    union { volatile uint8_t RBR; volatile uint8_t THR; volatile uint8_t DLL; }; // 0
-    union { volatile uint8_t IER; volatile uint8_t DLH; }; // 1
-    union { volatile uint8_t IIR; volatile uint8_t FCR; }; // 2
-    volatile uint8_t LCR; // 3
-    volatile uint8_t MCR; // 4
-    volatile uint8_t LSR; // 5
-    volatile uint8_t MSR; // 6
-    volatile uint8_t SCR; // 7
-} ns16550_8_t;
-
-#define UART(base) ((ns16550_8_t*) (uintptr_t) (base)) // Cast base address to struct pointer
-static inline void uart_init(uintptr_t base) {
-    ns16550_8_t* uart = UART(base);
-    uart->IER = 0x00; // Disable all interrupts (polling for boot)
-    uart->FCR = 0x07; // Enable FIFO, clear RX/TX queues
-    uart->LCR = 0x03; // 8 bits, no parity, one stop bit
-    uart->MCR = 0x03; // RTS/DSR set
-}
-
-static inline void uart_putc(uintptr_t base, char c) {
-    ns16550_8_t* uart = UART(base);
-    while ((uart->LSR & (1 << 5)) == 0); // Wait for THR empty
-    uart->THR = (uint8_t) c;
-}
-
-static inline void uart_puts(uintptr_t base, const char* str) {
-    while (*str) {
-        if (*str == '\n') {
-            uart_putc(base, '\r'); // Carriage return before newline
-        }
-        uart_putc(base, *str++);
-    }
-}
 
 void sbi_init(const void* fdt_blob) {
     // Build a view of the FDT

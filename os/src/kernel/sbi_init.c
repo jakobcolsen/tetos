@@ -1,5 +1,6 @@
 #include <fdt_parser.h>
 #include <kprintf.h>
+#include <panic.h>
 
 void sbi_init(const void* fdt_blob) {
     // Build a view of the FDT
@@ -39,6 +40,9 @@ void sbi_init(const void* fdt_blob) {
     // Bring up UART
     g_uart_base   = (uintptr_t) base;
     uart_init(g_uart_base);
+
+    // Test panic
+    panic("boo"); // Get it because the kernel panics because it got scared
 
     // TetOS IS ALIVE
     kprintf("BOOT: FDT UART FOUND! @0x%x!\n", g_uart_base);

@@ -23,3 +23,35 @@ void uart_puts(const char* str) {
         uart_putc(*str++);
     }
 }
+
+char uart_getc(void) {
+    ns16550_8_t* uart = UART(g_uart_base);
+    while ((uart->LSR & 0x01) == 0); // Wait for data available (LSR[0] = 1)
+    return (char) (uart->RBR);
+}
+
+void uart_gets(char* buffer, size_t max_length) {
+    if (max_length == 0) return; // No space to store anything
+
+    size_t i = 0;
+    while (i < (max_length - 1)) {
+        char c = uart_getc();
+
+        if (c == 0x1b) { // Escape character
+            continue; // Ignore for now
+        } else if (c == '\r' || c == '\n') {
+            uart_puts("\r\n"); // Echo newline
+            break; // Stop on enter/return
+        } else if (c == '\b' || c == 127) { // Backspace or DEL
+            if (i > 0) {
+                i--;
+                uart_puts("\b \b"); // Erase character on terminal
+            }
+        } else {
+            uart_putc(c); // Echo
+            buffer[i++] = c;
+        }
+    }
+
+    buffer[i] = '\0'; // Null-terminate the string
+}

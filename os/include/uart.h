@@ -30,5 +30,7 @@ typedef struct __attribute__((packed)) {
 void uart_init(uintptr_t base);
 void uart_putc(char c);
 void uart_puts(const char* str);
+char uart_getc(void);
+void uart_gets(char* buffer, size_t max_length);
 
 #endif // UART_H

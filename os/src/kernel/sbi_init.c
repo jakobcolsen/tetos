@@ -18,7 +18,7 @@ void sbi_init(const void* fdt_blob) {
         // We don't have UART yet; use QEMU's default 0x10000000 as a last resort
         g_uart_base = 0x10000000ull;
         uart_init(g_uart_base);
-        uart_puts("BOOT: fdt_init failed, using hardcoded UART @0x10000000\n");
+        panic("BOOT: fdt_init failed!");
         return;
     }
 
@@ -33,7 +33,7 @@ void sbi_init(const void* fdt_blob) {
         // Fallback: common QEMU virt mapping
         g_uart_base = 0x10000000ull;
         uart_init(g_uart_base);
-        uart_puts("BOOT: stdout UART not found in FDT; fallback @0x10000000\n");
+        panic("BOOT: stdout UART not found in FDT!");
         return;
     }
 
@@ -41,12 +41,19 @@ void sbi_init(const void* fdt_blob) {
     g_uart_base   = (uintptr_t) base;
     uart_init(g_uart_base);
 
-    // Test panic
-    panic("boo"); // Get it because the kernel panics because it got scared
-
     // TetOS IS ALIVE
     kprintf("BOOT: FDT UART FOUND! @0x%x!\n", g_uart_base);
     kprintf("Baguette crumbs of a new OS...\n");
     kprintf("Test kprintf: char '%c', string \"%s\", int %d, uint %u, hex 0x%x, percent %%, nothing %t\n",
             'A', "Stringing a chorus out of tune!", -1234, 5678u, 0x9abc);
+
+    // Echo
+    kprintf("Type characters to echo:\n");
+    kprintf("tetos> ");
+    char input[128];
+    while (1) {
+        uart_gets(input, sizeof(input));
+        kprintf("\nYou typed: %s\n", input);
+        kprintf("tetos> ");
+    }
 }

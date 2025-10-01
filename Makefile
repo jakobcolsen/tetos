@@ -104,7 +104,7 @@ run: $(TARGET).elf
 	qemu-system-riscv64 -machine virt -nographic -bios none -kernel $(TARGET).elf
 
 trace: $(TARGET).elf
-	qemu-system-riscv64 -machine virt -nographic -serial mon:stdio -bios none -kernel $(TARGET).elf -d guest_errors,unimp,mmu
+	qemu-system-riscv64 -machine virt -nographic -serial stdio -bios none -kernel $(TARGET).elf -d guest_errors,unimp,mmu
 
 clean:
 ifeq ($(OS),Windows_NT)

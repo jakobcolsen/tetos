@@ -6,7 +6,7 @@ _start:
     mv a0, a1;
 
 1:
-    call sbi_init       /* C entry */
+    call kernel_entry      /* C entry */
 hang:
     wfi
     j       hang

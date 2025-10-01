@@ -1,6 +1,4 @@
-#include <fdt_parser.h>
-#include <kprintf.h>
-#include <panic.h>
+#include <sbi_init.h>
 
 void sbi_init(const void* fdt_blob) {
     // Build a view of the FDT
@@ -40,20 +38,4 @@ void sbi_init(const void* fdt_blob) {
     // Bring up UART
     g_uart_base   = (uintptr_t) base;
     uart_init(g_uart_base);
-
-    // TetOS IS ALIVE
-    kprintf("BOOT: FDT UART FOUND! @0x%x!\n", g_uart_base);
-    kprintf("Baguette crumbs of a new OS...\n");
-    kprintf("Test kprintf: char '%c', string \"%s\", int %d, uint %u, hex 0x%x, percent %%, nothing %t\n",
-            'A', "Stringing a chorus out of tune!", -1234, 5678u, 0x9abc);
-
-    // Echo
-    kprintf("Type characters to echo:\n");
-    kprintf("tetos> ");
-    char input[128];
-    while (1) {
-        uart_gets(input, sizeof(input));
-        kprintf("\nYou typed: %s\n", input);
-        kprintf("tetos> ");
-    }
 }

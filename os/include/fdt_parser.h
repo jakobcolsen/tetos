@@ -1,9 +1,9 @@
+#ifndef FDT_PARSER_H
+#define FDT_PARSER_H
+
 #include <stdint.h>
 #include <stddef.h>
 #include <mini_lib.h>
-
-#ifndef FDT_PARSER_H
-#define FDT_PARSER_H
 
 typedef struct {
     uint32_t magic; // 0xd00dfeed

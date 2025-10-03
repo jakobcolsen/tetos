@@ -1,8 +1,10 @@
+#ifndef UART_H
+#define UART_H
+
 #include <stdint.h>
 #include <stddef.h>
 
-#ifndef UART_H
-#define UART_H
+static volatile uintptr_t g_uart_base = 0; // Global UART base address
 
 // This is a big one:
 // __attribute__((packed)) ensures no padding is added by the compiler, this is necessary
@@ -26,7 +28,9 @@ typedef struct __attribute__((packed)) {
 #define UART(base) ((ns16550_8_t*) (uintptr_t) (base)) // Cast base address to struct pointer
 
 void uart_init(uintptr_t base);
-void uart_putc(uintptr_t base, char c);
-void uart_puts(uintptr_t base, const char* str);
+void uart_putc(char c);
+void uart_puts(const char* str);
+char uart_getc(void);
+void uart_gets(char* buffer, size_t max_length);
 
 #endif // UART_H

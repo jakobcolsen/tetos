@@ -1,12 +1,4 @@
-#include <fdt_parser.h>
-#include <uart.h>
-
-// Global for UART
-static volatile uintptr_t g_uart_base = 0;   // filled by FDT
-static uint64_t g_uart_size = 0;   // (not used yet, but handy to keep)
-static const char* g_uart_path = 0;   // e.g., "/soc/uart@10000000"
-static const char* g_uart_compat = 0; // e.g., "ns16550a"
-
+#include <sbi_init.h>
 
 void sbi_init(const void* fdt_blob) {
     // Build a view of the FDT
@@ -22,9 +14,9 @@ void sbi_init(const void* fdt_blob) {
 
     if (fdt_init(&view, fdt_blob, blob_size) != 0) {
         // We don't have UART yet; use QEMU's default 0x10000000 as a last resort
-        g_uart_base = 0x10000000ull;
+        g_uart_base = UART_DEFAULT_MAP;
         uart_init(g_uart_base);
-        uart_puts(g_uart_base, "BOOT: fdt_init failed, using hardcoded UART @0x10000000\n");
+        panic("BOOT: fdt_init failed!");
         return;
     }
 
@@ -37,24 +29,13 @@ void sbi_init(const void* fdt_blob) {
     int rc = fdt_resolve_stdout_uart(&view, &base, &size, &node_path, &compatible);
     if (rc != 0 || base == 0) {
         // Fallback: common QEMU virt mapping
-        g_uart_base = 0x10000000ull;
+        g_uart_base = UART_DEFAULT_MAP;
         uart_init(g_uart_base);
-        uart_puts(g_uart_base, "BOOT: stdout UART not found in FDT; fallback @0x10000000\n");
+        panic("BOOT: stdout UART not found in FDT!");
         return;
     }
 
     // Bring up UART
     g_uart_base   = (uintptr_t) base;
-    g_uart_size   = size;
-    g_uart_path   = node_path;
-    g_uart_compat = compatible ? compatible : "";
-
     uart_init(g_uart_base);
-
-    // TetOS IS ALIVE
-    uart_puts(g_uart_base, "BOOT: TetOS SBI early console ready\n");
-    uart_puts(g_uart_base, "Baguette crumbs of a new OS...\n");
-    uart_puts(g_uart_base, "Using UART abs_path=");
-    uart_puts(g_uart_base, g_uart_path);
-    uart_puts(g_uart_base, "\n");
 }

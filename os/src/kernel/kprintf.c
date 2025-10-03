@@ -62,7 +62,7 @@ void kprintf(const char* format_string, ...) {
                 uart_puts(str);
                 break;
             } // char*
-            case 'i': // Also decimal because...?
+            case 'i': // Also decimal because why not
             case 'd':{
                 int value = va_arg(args, int);
                 print_value(value, 10, 1);

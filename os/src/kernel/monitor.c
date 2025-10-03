@@ -51,7 +51,7 @@ static int tokenize(char *input, char** argv, int max_args) {
     while (*input && argc < max_args) {
         // Skip leading whitespace
         while (*input == ' ' || *input == '\t' || *input == '\n' || *input == '\r') {
-            *input++; // This gives Wunused Value warning, but it's fine
+            (void) *input++; // (void) to suppress unused value warning
         }
 
         // End of string
@@ -62,7 +62,7 @@ static int tokenize(char *input, char** argv, int max_args) {
 
         // Find end of argument
         while (*input && *input != ' ' && *input != '\t' && *input != '\n' && *input != '\r') {
-            *input++;
+           (void) *input++;
         }
 
         // Null-terminate argument

@@ -19,8 +19,8 @@ int strcmp(const char* s1, const char* s2) {
     return *(const unsigned char*) s1 - *(const unsigned char*) s2;
 }
 
-int strlen(const char* s) {
-    int n = 0;
+size_t strlen(const char* s) {
+    size_t n = 0;
     while (s[n]) n++;
 
     return n;

@@ -1,5 +1,4 @@
 #include <kernel.h>
-#include <monitor.h>
 
 int kernel_main(void) {
      // TetOS IS ALIVE

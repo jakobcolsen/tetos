@@ -1,8 +1,8 @@
-#include <stdint.h>
-#include <stddef.h>
-
 #ifndef UART_H
 #define UART_H
+
+#include <stdint.h>
+#include <stddef.h>
 
 static volatile uintptr_t g_uart_base = 0; // Global UART base address
 

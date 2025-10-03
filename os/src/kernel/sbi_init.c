@@ -14,7 +14,7 @@ void sbi_init(const void* fdt_blob) {
 
     if (fdt_init(&view, fdt_blob, blob_size) != 0) {
         // We don't have UART yet; use QEMU's default 0x10000000 as a last resort
-        g_uart_base = 0x10000000ull;
+        g_uart_base = UART_DEFAULT_MAP;
         uart_init(g_uart_base);
         panic("BOOT: fdt_init failed!");
         return;
@@ -29,7 +29,7 @@ void sbi_init(const void* fdt_blob) {
     int rc = fdt_resolve_stdout_uart(&view, &base, &size, &node_path, &compatible);
     if (rc != 0 || base == 0) {
         // Fallback: common QEMU virt mapping
-        g_uart_base = 0x10000000ull;
+        g_uart_base = UART_DEFAULT_MAP;
         uart_init(g_uart_base);
         panic("BOOT: stdout UART not found in FDT!");
         return;

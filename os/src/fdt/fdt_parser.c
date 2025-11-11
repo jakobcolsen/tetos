@@ -80,8 +80,7 @@ static int fdt_prop_is(const FDTProp_t* prop, const char* name) {
 }
 
 
-// Not used now but might be useful later
-/*
+// These are useful now!
 static int fdt_prop_next_string(const FDTProp_t* prop, const char** output, size_t* cursor) {
     if (!output || !cursor) return 0; // Bad input
     if (*cursor >= prop->length) return 0; // Out of bounds
@@ -94,10 +93,8 @@ static int fdt_prop_next_string(const FDTProp_t* prop, const char** output, size
     *cursor += string_length + 1; // Move cursor past this string and NULL terminator
     return 1; // Success
 }
-*/
 
-// Not used now but might be useful later
-/*
+
 static int fdt_prop_stringlist_contains(const FDTProp_t* prop, const char* string) {
     const char* current = NULL;
     size_t offset = 0;
@@ -107,7 +104,11 @@ static int fdt_prop_stringlist_contains(const FDTProp_t* prop, const char* strin
     
     return 0; // Not found
 }
-*/
+
+static int is_mtimer_compatible(const FDTProp_t* compat) {
+    // Common mtimer compatibles
+    return fdt_prop_stringlist_contains(compat, "riscv,aclint-mtimer") || fdt_prop_stringlist_contains(compat, "riscv,clint0");
+}
 
 static int fdt_prop_read_u32(const FDTProp_t* prop, uint32_t* output, size_t index) {
     if (!output) return 0; // Bad input
@@ -562,4 +563,102 @@ int fdt_resolve_stdout_uart(const FDTView_t* fdt, uint64_t* base, uint64_t* size
         *compatible = found_compatible ? found_compatible : ""; // may be a stringlist; first is fine
         return 0;
     }
+}
+
+// Returns 0 on success and writes *hz. On success *src_path points into an internal buffer (do not free).
+int fdt_read_timebase_frequency(const FDTView_t* fdt, uint32_t* hz, const char** src_path) {
+    if (!fdt || !hz) return -1;
+
+    // Pass 1: look for /cpus { timebase-frequency = <...>; }
+    {
+        FDTCursor_t cursor = { .current = fdt->struct_begin, .end = fdt->struct_end };
+        FDTPathStack_t path = { .depth = 0 };
+        FDTToken_t token; const char* name = NULL; FDTProp_t prop;
+
+        while (1) {
+            int r = fdt_next(&cursor, (FDTView_t*)fdt, &token, &name, &prop);
+            if (r == 1) break;
+            if (r < 0) return -2;
+
+            switch (token) {
+                case FDT_BEGIN_NODE: 
+                    path_push(&path, name, strlen(name)); 
+                    break;
+
+                case FDT_END_NODE:
+                    path_pop(&path);
+                    break;
+                    
+                case FDT_PROP:
+                    if (path_equals_abs(&path, "/cpus") && fdt_prop_is(&prop, "timebase-frequency")) {
+                        uint32_t v;
+                        if (fdt_prop_read_u32(&prop, &v, 0)) {
+                            *hz = v;
+                            if (src_path) *src_path = "/cpus";
+                            return 0;
+                        } else return -3; // malformed u32
+                    }
+                    break;
+
+                default: break;
+            }
+        }
+    }
+
+    // Pass 2: fallback — find an mtimer node with timebase-frequency
+    {
+        FDTCursor_t cursor = { .current = fdt->struct_begin, .end = fdt->struct_end };
+        FDTPathStack_t path = { .depth = 0 };
+        FDTToken_t token; const char* name = NULL; FDTProp_t prop;
+
+        int in_mtimer_node = 0;
+        char where_buf[256]; // store absolute path of mtimer node we match
+        where_buf[0] = '\0';
+
+        while (1) {
+            int r = fdt_next(&cursor, (FDTView_t*)fdt, &token, &name, &prop);
+            if (r == 1) break;
+            if (r < 0) return -4;
+
+            switch (token) {
+                case FDT_BEGIN_NODE:
+                    path_push(&path, name, strlen(name));
+                    in_mtimer_node = 0; // reset; we’ll set it if we see a matching compatible
+                    break;
+
+                case FDT_END_NODE:
+                    path_pop(&path);
+                    in_mtimer_node = 0;
+                    break;
+
+                case FDT_PROP:
+                    if (fdt_prop_is(&prop, "compatible")) {
+                        in_mtimer_node = is_mtimer_compatible(&prop);
+                        if (in_mtimer_node) {
+                            // remember path string of this node
+                            path_join(&path, where_buf, sizeof(where_buf));  // uses your existing join
+                        }
+                    } else if (in_mtimer_node && fdt_prop_is(&prop, "timebase-frequency")) {
+                        uint32_t v;
+                        if (fdt_prop_read_u32(&prop, &v, 0)) {
+                            *hz = v;
+                            if (src_path) {
+                                // return a stable pointer—copy the path into a static scratch if you prefer
+                                // Here we return a pointer into a static buffer for simplicity.
+                                static char saved[256];
+                                strncpy(saved, where_buf, sizeof(saved));
+                                saved[sizeof(saved)-1] = '\0';
+                                *src_path = saved;
+                            }
+                            return 0;
+                        } else return -5;
+                    }
+                    break;
+
+                default: break;
+            }
+        }
+    }
+
+    return -6; // not found
 }

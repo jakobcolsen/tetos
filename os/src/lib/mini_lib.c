@@ -36,6 +36,17 @@ int memcmp(const void* a, const void* b, size_t n) {
     return 0;
 }
 
+void strncpy(char* dest, const char* src, size_t n) {
+    size_t i;
+    for (i = 0; i < n && src[i] != '\0'; i++) {
+        dest[i] = src[i];
+    }
+
+    for (; i < n; i++) {
+        dest[i] = '\0'; // Null if short
+    }
+}
+
 void* memset(void* destination, int value, size_t n) {
     unsigned char* d = (unsigned char*) destination;
     unsigned char v = (unsigned char) value;

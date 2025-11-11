@@ -3,6 +3,8 @@
 
 #include <fdt_parser.h>
 #include <panic.h>
+#include <uart.h>
+#include <timer.h>
 
 #define UART_DEFAULT_MAP 0x10000000ull
 

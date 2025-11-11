@@ -1,10 +1,10 @@
 #include <stdint.h>
 #include <init.h>
-#include <timer.h>
 #include <kernel.h>
+#include <kprintf.h>
 
 void kernel_entry(uintptr_t hart_id, const void* fdt_blob) {
     init(fdt_blob);
-    timer_init_ticks_10ms();
+    kprintf("Kernel initialized on hart %lu\n", hart_id);
     kernel_main();
 }

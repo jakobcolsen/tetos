@@ -65,7 +65,7 @@ static int command_sleep(int argc, char** argv) {
     }
 
     kprintf("Sleeping for %d ms...\n", ms);
-    sleep_ms((uint64_t) ms / 10); // sleep_ms expects 10ms ticks
+    sleep_ms((uint64_t) ms); // sleep_ms expects 1ms ticks
     kprintf("Woke up after %d ms.\n", ms);
     return 0;
 }

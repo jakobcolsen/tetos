@@ -115,5 +115,6 @@ uint64_t read_be64(const void* pointer);
 int fdt_init(FDTView_t* fdt, const void* blob, size_t size);
 int fdt_next(FDTCursor_t* cursor, FDTView_t* fdt, FDTToken_t* token, const char** name, FDTProp_t* prop);
 int fdt_resolve_stdout_uart(const FDTView_t* fdt, uint64_t* base, uint64_t* size, const char** path, const char** compatible);
+int fdt_read_timebase_frequency(const FDTView_t* fdt, uint32_t* hz, const char** src_path);
 
 #endif // FDT_PARSER_H

@@ -51,6 +51,7 @@ void init(const void* fdt_blob) {
         return;
     }
 
-    uart_fdt(&view);
+
     timer_fdt(&view);
+    uart_fdt(&view);
 }

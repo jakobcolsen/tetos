@@ -12,6 +12,7 @@ static int command_help();
 static int command_echo(int argc, char** argv);
 static int command_panic();
 static int command_sleep(int argc, char** argv);
+static int command_shutdown();
 static int tokenize(char *input, char** argv, int max_args);
 
 static const command_t commands[] = {
@@ -19,6 +20,7 @@ static const command_t commands[] = {
     {"echo", "Echo the input arguments", command_echo},
     {"panic", "Trigger a kernel panic", command_panic},
     {"sleep", "Sleep for a specified duration (ms)", command_sleep},
+    {"shutdown", "Shut down the system", command_shutdown}
 };
 
 #define NUM_COMMANDS (sizeof(commands) / sizeof(commands[0]))
@@ -68,6 +70,12 @@ static int command_sleep(int argc, char** argv) {
     sleep_ms((uint64_t) ms); // sleep_ms expects 1ms ticks
     kprintf("Woke up after %d ms.\n", ms);
     return 0;
+}
+
+static int command_shutdown() {
+    kprintf("Bye bye!\n");
+    sbi_system_shutdown();
+    return 0; // Unreachable
 }
 
 static int tokenize(char *input, char** argv, int max_args) {

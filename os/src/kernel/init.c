@@ -1,6 +1,6 @@
-#include <sbi_init.h>
+#include <init.h>
 
-void sbi_init(const void* fdt_blob) {
+void init(const void* fdt_blob) {
     // Build a view of the FDT
     FDTView_t view;
     uint32_t totalsize = 0;

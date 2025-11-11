@@ -1,9 +1,7 @@
-#include <sbi_init.h>
-#include <kernel.h>
+#include <stdint.h>
+#include <init.h>
 
-// Pretty basic, probably want to do something more useful here
-void kernel_entry(const void* fdt_blob) {
-    sbi_init(fdt_blob);
-
+void kernel_entry(uintptr_t hart_id, const void* fdt_blob) {
+    init(fdt_blob);
     kernel_main();
 }

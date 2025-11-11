@@ -101,7 +101,7 @@ list:
 	@echo OBJS   : $(OBJS)
 
 run: $(TARGET).elf
-	qemu-system-riscv64 -machine virt -nographic -bios none -kernel $(TARGET).elf
+	qemu-system-riscv64 -machine virt -nographic -kernel $(TARGET).elf
 
 trace: $(TARGET).elf
 	qemu-system-riscv64 -machine virt -nographic -serial stdio -bios none -kernel $(TARGET).elf -d guest_errors,unimp,mmu

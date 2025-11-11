@@ -11,7 +11,7 @@ READELF = $(CROSS)readelf
 NM      = $(CROSS)nm
 
 # ===== Project layout (run make from repo root) =====
-SRCDIRS = os/src os/src/boot os/src/kernel os/src/drivers os/src/lib os/src/fdt
+SRCDIRS = os/src os/src/boot os/src/kernel os/src/drivers os/src/lib os/src/fdt os/src/riscv
 INCDIRS = os/include .
 
 # ===== Output =====

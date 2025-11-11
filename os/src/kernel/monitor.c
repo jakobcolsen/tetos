@@ -11,12 +11,14 @@ typedef struct {
 static int command_help();
 static int command_echo(int argc, char** argv);
 static int command_panic();
+static int command_sleep(int argc, char** argv);
 static int tokenize(char *input, char** argv, int max_args);
 
 static const command_t commands[] = {
     {"help", "Display this help message", command_help},
     {"echo", "Echo the input arguments", command_echo},
     {"panic", "Trigger a kernel panic", command_panic},
+    {"sleep", "Sleep for a specified duration (ms)", command_sleep},
 };
 
 #define NUM_COMMANDS (sizeof(commands) / sizeof(commands[0]))
@@ -43,6 +45,29 @@ static int command_echo(int argc, char** argv) {
 static int command_panic() {
     panic("User triggered panic via 'panic' command");
     return 0; // Unreachable
+}
+
+static int command_sleep(int argc, char** argv) {
+    if (argc != 2) {
+        kprintf("Usage: sleep <milliseconds>\n");
+        return -1;
+    }
+
+    int ms = 0;
+    // Simple atoi implementation
+    for (const char* p = argv[1]; *p; p++) {
+        if (*p < '0' || *p > '9') {
+            kprintf("Invalid number: %s\n", argv[1]);
+            return -1;
+        }
+        // Divide by 10 and add digit
+        ms = ms * 10 + (*p - '0');
+    }
+
+    kprintf("Sleeping for %d ms...\n", ms);
+    sleep_ms((uint64_t) ms / 10); // sleep_ms expects 10ms ticks
+    kprintf("Woke up after %d ms.\n", ms);
+    return 0;
 }
 
 static int tokenize(char *input, char** argv, int max_args) {

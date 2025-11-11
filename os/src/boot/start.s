@@ -25,6 +25,13 @@ _start:
     sd      zero, 0(t0)
     addi    t0, t0, 8
     j       1b
+
 2:
+    la   t0, trap_vector
+    csrw stvec, t0
+    li   t0, 0
+    csrw sie, t0
+    csrc sstatus, 2    # clear SSTATUS.SIE
+
     # jump to C preserving a0=hartid, a1=dtb
     tail    kernel_entry

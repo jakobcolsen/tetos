@@ -54,4 +54,22 @@ static inline void sbi_system_reboot_cold(void) {
     (void)sbi_call(SBI_EID_SRST, 0, SBI_SRST_TYPE_COLD, SBI_SRST_REASON_NONE, 0,0,0,0);
 }
 
+static inline void sbi_console_putc(int ch) {
+  register uint64_t A0 asm("a0") = (uint8_t)ch;
+  register uint64_t A7 asm("a7") = 1;  // legacy putc
+  asm volatile("ecall" : "+r"(A0) : "r"(A7) : "memory");
+}
+
+static inline void sbi_set_timer(uint64_t stime) {  // EID "TIME", FID set_timer=0
+  register uint64_t A0 asm("a0") = stime;
+  register uint64_t A6 asm("a6") = 0;
+  register uint64_t A7 asm("a7") = SBI_EID_TIMER;
+  asm volatile("ecall" : "+r"(A0) : "r"(A6), "r"(A7) : "memory");
+}
+
+static inline uint64_t rdtime(void) { 
+    uint64_t x; asm volatile("csrr %0, time":"=r"(x)); 
+    return x; 
+}
+
 #endif // SBI_H

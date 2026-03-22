@@ -1,3 +1,4 @@
+#include <kernel.h>
 #include <panic.h>
 
 void _panic(const char* msg, const char* file, int line, const char* func) {

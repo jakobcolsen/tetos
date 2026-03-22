@@ -3,7 +3,7 @@
 # It assumes you have a RISC-V toolchain installed and in your PATH.
 
 # ===== Toolchain =====
-CROSS   = riscv64-unknown-elf-
+CROSS   ?= riscv-none-elf-
 CC      = $(CROSS)gcc
 OBJCOPY = $(CROSS)objcopy
 OBJDUMP = $(CROSS)objdump
@@ -19,7 +19,7 @@ TARGET   = tetos
 BUILDDIR = build
 
 # ===== RISC-V flags (no F/D, soft-float ABI) =====
-RISCV_ISA = -march=rv64imac
+RISCV_ISA = -march=rv64imac_zicsr_zifencei
 RISCV_ABI = -mabi=lp64
 
 CFLAGS  = -Wall -Wextra -ffreestanding -nostdlib -nostartfiles -O2 \

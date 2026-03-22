@@ -1,7 +1,6 @@
 #ifndef PANIC_H
 #define PANIC_H
 
-#include <kprintf.h>
 #include <sbi.h>
 
 #define panic(msg) _panic(msg, __FILE__, __LINE__, __func__)

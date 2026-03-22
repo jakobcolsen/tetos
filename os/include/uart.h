@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-static volatile uintptr_t g_uart_base = 0; // Global UART base address
+extern volatile uintptr_t g_uart_base; // Global UART base address
 
 // This is a big one:
 // __attribute__((packed)) ensures no padding is added by the compiler, this is necessary

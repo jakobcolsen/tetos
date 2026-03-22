@@ -1,7 +1,7 @@
 #include <timer.h>
+#include <riscv/csr.h>
 
-#define SIE_STIE (1ULL << 5)
-#define SSTATUS_SIE (1ULL << 1)
+volatile uint32_t g_timer_hz = 0;
 #define TIMER_10MHZ_1MS_TICKS 10000ULL
 
 void timer_init(uint32_t hz) {

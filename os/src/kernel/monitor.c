@@ -1,3 +1,4 @@
+#include <kernel.h>
 #include <monitor.h>
 
 typedef int (*command_function_t) (int argc, char** argv);
@@ -8,11 +9,11 @@ typedef struct {
     command_function_t function;
 } command_t;
 
-static int command_help();
+static int command_help(int argc, char** argv);
 static int command_echo(int argc, char** argv);
-static int command_panic();
+static int command_panic(int argc, char** argv);
 static int command_sleep(int argc, char** argv);
-static int command_shutdown();
+static int command_shutdown(int argc, char** argv);
 static int tokenize(char *input, char** argv, int max_args);
 
 static const command_t commands[] = {
@@ -27,7 +28,8 @@ static const command_t commands[] = {
 #define MAX_COMMAND_ARGS 16
 #define MAX_INPUT_LENGTH 128
 
-static int command_help() {
+static int command_help(int argc, char** argv) {
+    (void)argc; (void)argv;
     kprintf("Available commands:\n");
     for (int i = 0; i < (int) NUM_COMMANDS; i++) {
         kprintf("%s: %s\n", commands[i].name, commands[i].description);
@@ -44,7 +46,8 @@ static int command_echo(int argc, char** argv) {
 }
 
 // Top notch security right here
-static int command_panic() {
+static int command_panic(int argc, char** argv) {
+    (void)argc; (void)argv;
     panic("User triggered panic via 'panic' command");
     return 0; // Unreachable
 }
@@ -72,7 +75,8 @@ static int command_sleep(int argc, char** argv) {
     return 0;
 }
 
-static int command_shutdown() {
+static int command_shutdown(int argc, char** argv) {
+    (void)argc; (void)argv;
     kprintf("Bye bye!\n");
     sbi_system_shutdown();
     return 0; // Unreachable

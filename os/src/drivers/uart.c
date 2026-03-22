@@ -1,5 +1,7 @@
 #include <uart.h>
 
+volatile uintptr_t g_uart_base = 0;
+
 void uart_init(uintptr_t base) {
     g_uart_base = base;
     ns16550_8_t* uart = UART(base);

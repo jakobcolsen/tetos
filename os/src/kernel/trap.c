@@ -1,14 +1,7 @@
 #include <stdint.h>
 #include <sbi.h>
 #include <panic.h>
-
-#define SCAUSE_INT_MASK (1ULL << 63)
-#define SCAUSE_CODE(x) ((x) & 0xFFFULL)
-
-#define SIE_SSIE (1ULL << 1)
-#define SIE_STIE (1ULL << 5)
-#define SIE_SEIE (1ULL << 9)
-#define SSTATUS_SIE (1ULL << 1)
+#include <riscv/csr.h>
 
 static volatile uint64_t g_ticks;
 

@@ -1,4 +1,4 @@
-#include <kprintf.h>
+#include <kernel.h>
 
 static void print_value(int value, int base, int is_signed) {
     char buffer[32]; // Enough for 32-bit binary representation + sign + null
